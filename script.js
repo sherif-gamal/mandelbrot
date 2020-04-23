@@ -1,4 +1,5 @@
 let canvas, ctx, w, h;
+const maxIter = 80;
 
 function applyTransform(x, y) {
     const a = 4/w * x - 2;
@@ -23,11 +24,12 @@ function abs(z) {
 function belongsToMandelbrot(c) {
     let z = {a: 0, b: 0};
     let i;
-    for (i = 0; i < 500; i++) {
+    for (i = 0; i < maxIter; i++) {
         z = f(z, c);
-        if (abs(z) > 2) return false;
+        const ab = abs(z);
+        if (ab > 2) return i - Math.log2(Math.log2(ab));
     }
-    return true;
+    return i;
 }
 
 function drawAxes() {
@@ -39,10 +41,20 @@ function drawAxes() {
     ctx.stroke();
 }
 
-function color(pixels, start, belongs) {
-    pixels[start] = belongs ? 0 : 255;
-    pixels[start + 1] = belongs ? 0 : 255;
-    pixels[start + 2] = belongs ? 0 : 255;
+// input: h in [0,360] and s,v in [0,1] - output: r,g,b in [0,1]
+function hsv2rgb(h,s,v) {
+    let f= (n,k=(n+h/60)%6) => v - v*s*Math.max( Math.min(k,4-k,1), 0);
+    return [f(5),f(3),f(1)];
+}
+
+function color(pixels, start, speed) {
+    const hue = 360 * speed/maxIter;
+    const saturation = speed/maxIter;
+    const value = 1 - speed / maxIter;
+    const [r, g, b] = hsv2rgb(hue, saturation, value);
+    pixels[start] = r * 255;
+    pixels[start + 1] = g * 255;
+    pixels[start + 2] = b * 255;
     pixels[start + 3] = 255;
 }
 
@@ -51,9 +63,9 @@ function plotMandelbrot() {
     const pixels = myImageData.data;
     for (let i = 0; i < h; i++) {
         for (let j = 0; j < w; j++) {
-            const belongs = belongsToMandelbrot(applyTransform(j, i));
+            const speed = belongsToMandelbrot(applyTransform(j, i));
             const start = 4 * (i * w + j);
-            color(pixels, start, belongs);
+            color(pixels, start, speed);
         }
     }
 
