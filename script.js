@@ -1,10 +1,22 @@
 let canvas, ctx, w, h;
-const maxIter = 80;
+const maxIter = 500;
+let transform;
 
 function applyTransform(x, y) {
-    const a = 4/w * x - 2;
-    const b = -4/h * y + 2;
-    return {a, b};
+    const {sx, sy, tx, ty} = transform;
+    return {
+        a: sx * x + tx,
+        b: sy * y + ty
+    }
+}
+
+function initTransform() {
+    transform = {
+        sx: 4/w,
+        sy: -4/h,
+        tx: -2,
+        ty: 2
+    }
 }
 
 function f(z, c) {
@@ -73,10 +85,55 @@ function plotMandelbrot() {
     drawAxes(ctx);
 }
 
+function pan(px, py) {
+    const {sx, sy, tx, ty} = transform;
+    transform = {
+        sx,
+        sy,
+        tx: tx - sx * px,
+        ty: ty - sy * py
+    }
+    plotMandelbrot();
+}
+
+function zoom(zf, zx, zy) {
+    const {a, b} = applyTransform(zx, zy);
+    const {sx, sy, tx, ty} = transform;
+    transform = {
+        sx: zf * sx,
+        sy: zf * sy,
+        tx: zf * tx + a - zf * a,
+        ty: zf * ty + b - zf * b
+    }
+    plotMandelbrot();
+}
+
+function registerHandlers() {
+    let mouseDown = false;
+    canvas.onmousedown = function() {
+        mouseDown = true;
+    };
+    canvas.onmousemove = function(e) {
+        if (mouseDown) {
+            pan(e.movementX, e.movementY)
+        }
+    };
+    canvas.onmouseup = function() {
+        mouseDown = false;
+    };
+    canvas.onwheel = function(e) {
+        e.preventDefault();
+        const zf = e.deltaY > 0 ? 1.5 : 1 / 1.5;
+        zoom(zf, e.offsetX, e.offsetY);
+    }
+}
+
 function draw() {
     canvas = document.getElementById('my-canvas');
     ctx = canvas.getContext('2d');
     w = canvas.width;
     h = canvas.height;
+    initTransform();
+    registerHandlers();
     plotMandelbrot();
 }
