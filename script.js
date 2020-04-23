@@ -1,0 +1,140 @@
+let canvas, ctx, w, h;
+const maxIter = 500;
+let transform;
+
+function applyTransform(x, y) {
+    const {sx, sy, tx, ty} = transform;
+    return {
+        a: sx * x + tx,
+        b: sy * y + ty
+    }
+}
+
+function initTransform() {
+    transform = {
+        sx: 4/w,
+        sy: -4/h,
+        tx: -2,
+        ty: 2
+    }
+
+}
+// input: h in [0,360] and s,v in [0,1] - output: r,g,b in [0,1]
+function hsv2rgb(h,s,v) {
+    let f= (n,k=(n+h/60)%6) => v - v*s*Math.max( Math.min(k,4-k,1), 0);
+    return [f(5),f(3),f(1)];
+}
+
+function color(pixels, start, speed) {
+    const hue = 360 * speed / maxIter;
+    const saturation = 1 - speed/maxIter;
+    const value = 1 - speed/maxIter;
+    const [r, g, b] = hsv2rgb(hue, saturation, value);
+    pixels[start] = r * 255;
+    pixels[start + 1] = g * 255;
+    pixels[start + 2] = b * 255;
+    pixels[start + 3] = 255;
+}
+
+function plotMandelbrot() {
+    const myImageData = ctx.createImageData(w, h);
+    const {sx, sy, tx, ty} = transform;
+    for (let i = 0; i < h; i++) {
+        for (let j = 0; j < w; j++) {
+            speed = belongsToMandelbrot(applyTransform(j, i));
+            start = 4 * (i * w + j);
+            color(myImageData.data, start, speed);
+        }
+    }
+
+    // console.log(s)
+    ctx.putImageData(myImageData, 0, 0);
+    drawAxes(ctx);
+}
+
+function f(z, c) {
+    const {a, b} = z;
+
+    const nextA = a * a - b * b + c.a;
+    const nextB = 2 * a * b + c.b;
+
+    return {a: nextA, b: nextB};
+}
+
+function abs(z) {
+    const {a, b} = z;
+    return a * a + b * b;
+}
+
+function belongsToMandelbrot(c) {
+    let z = {a: 0, b: 0};
+    let i, ab;
+    for (i = 0; i < maxIter; i++) {
+        z = f(z, c);
+        ab = abs(z);
+        if (ab > 4) return i - Math.log2(Math.log2(ab));
+    }
+    return i;
+}
+
+function drawAxes() {
+    ctx.beginPath();
+    ctx.moveTo(0, h/2);
+    ctx.lineTo(w, h/2);
+    ctx.moveTo(w/2, 0);
+    ctx.lineTo(w/2, h);
+    ctx.stroke();
+}
+
+function pan(px, py) {
+    const {sx, sy, tx, ty} = transform;
+    transform = {
+        sx,
+        sy,
+        tx: tx - sx * px,
+        ty: ty - sy * py
+    }
+    plotMandelbrot();
+}
+
+function zoom(zf, zx, zy) {
+    const {a, b} = applyTransform(zx, zy);
+    const {sx, sy, tx, ty} = transform;
+    transform = {
+        sx: zf * sx,
+        sy: zf * sy,
+        tx: zf * tx + a - zf * a,
+        ty: zf * ty + b - zf * b
+    }
+    plotMandelbrot();
+}
+
+function registerHandlers() {
+    let mouseDown = false;
+    canvas.onmousedown = function() {
+        mouseDown = true;
+    };
+    canvas.onmousemove = function(e) {
+        if (mouseDown) {
+            pan(e.movementX, e.movementY)
+        }
+    };
+    canvas.onmouseup = function() {
+        mouseDown = false;
+    };
+    canvas.onwheel = function(e) {
+        e.preventDefault();
+        const zf = e.deltaY > 0 ? 2 : 1 / 2;
+        zoom(zf, e.offsetX, e.offsetY);
+    }
+}
+
+function draw() {
+    canvas = document.getElementById('my-canvas');
+    ctx = canvas.getContext('2d');
+    w = canvas.width;
+    h = canvas.height;
+    initTransform();
+    plotMandelbrot();
+    registerHandlers();
+}
