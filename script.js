@@ -19,27 +19,17 @@ function initTransform() {
     }
 }
 
-function f(z, c) {
-    const {a, b} = z;
-
-    const nextA = a * a - b * b + c.a;
-    const nextB = 2 * a * b + c.b;
-
-    return {a: nextA, b: nextB};
-}
-
-function abs(z) {
-    const {a, b} = z;
-    return Math.sqrt(a * a + b * b);
-}
-
 function belongsToMandelbrot(c) {
     let z = {a: 0, b: 0};
     let i;
     for (i = 0; i < maxIter; i++) {
-        z = f(z, c);
-        const ab = abs(z);
-        if (ab > 2) return i - Math.log2(Math.log2(ab));
+        const nextA = z.a * z.a - z.b * z.b + c.a;
+        const nextB = 2 * z.a * z.b + c.b;
+
+        z.a = nextA;
+        z.b = nextB;
+        const ab = Math.sqrt(z.a * z.a + z.b * z.b);
+        if (ab > 2) return i - Math.log2(ab);
     }
     return i;
 }
@@ -82,7 +72,6 @@ function plotMandelbrot() {
     }
 
     ctx.putImageData(myImageData, 0, 0);
-    drawAxes(ctx);
 }
 
 function pan(px, py) {
